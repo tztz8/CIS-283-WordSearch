@@ -10,7 +10,7 @@
 
 # lib
 require './puzzle.rb'
-require 'prawn'
+require './pdf.rb'
 #require 'prawn/table'
 
 # Debugging flag
@@ -26,6 +26,7 @@ info = {
 }
 pdf_file = "Test.pdf"
 puz = Puzzle.new(size, file, $debug)
+Thread.abort_on_exception = true
 
 # ***Make the Puzzle***
 puts "Welcome to Puzzle maker"
@@ -65,39 +66,4 @@ puts "Finish Making Puzzle at #{Time.now - time_start}"
 puts puz.puzzle_board_as_string if $debug
 
 puts "Making #{pdf_file}"
-Prawn::Document.generate( pdf_file , :info => info) do | pdf |
-  pdf.stroke_axis if $debug
-  # Title
-  pdf.text "Word Search", :align => :center, :size => 20
-
-  # Word Puzzle
-  pdf.font("Courier") do
-    pdf.pad(7) {
-      for i in 0...size
-        line = ""
-        for j in 0...size
-          # print each piece
-          line << "#{puz.puzzle_board[i][j]}"
-        end
-        pdf.text "#{line}\n", :align => :center, :size => 9, :character_spacing => 5
-      end
-    }
-  end
-
-  #puts "pdf cursor is at #{pdf.cursor}" if $debug
-
-  # Say what to do
-  pdf.pad(20){
-    pdf.text "Find the following 45 words:",
-             :align => :center, :size => 9
-  }
-  # list all the words
-  pdf.column_box([0, pdf.cursor], :columns => 3, :width => pdf.bounds.width) do
-    puz.words.each { |word|
-      pdf.pad(1){
-        pdf.text word,
-                 :align => :center, :size => 7.5
-      }
-    }
-  end
-end
+make_pdf(pdf_file, puz, info)

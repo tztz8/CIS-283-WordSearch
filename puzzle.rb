@@ -9,7 +9,7 @@
 #####################################################################################
 
 class Puzzle
-  attr_reader :puzzle_board, :debug, :size
+  attr_reader :puzzle_board, :debug, :size, :key_puzzle_board
   @@char_blank = "."
 
   def initialize (size, word_file_name, debug = false)
@@ -19,8 +19,20 @@ class Puzzle
     puts @words_orginal.inspect if @debug
     @words = (@words_orginal[1].sort_by{ |x| x.length }).reverse
     puts @words.inspect if @debug
+    @chars = []
+    @words_data = Array.new(@words.length) {Array.new(4)}
+    @words.each_with_index do |word, i|
+      @words_data[i][3] = []
+      word.chars.each_with_index do |char, j|
+        if char == " "
+          #@words[i].delete!(" ")
+        else
+          @chars.append(char)
+        end
+      end
+    end
     @puzzle_board = Array.new(@size) {Array.new(@size, @@char_blank)}
-    @words_data = Array.new(@words.length) {Array.new(3)}
+    @key_puzzle_board = Array.new(@size) {Array.new(@size, @@char_blank)}
   end
 
   def words
@@ -29,21 +41,22 @@ class Puzzle
 
   def make_puzzle
     for i in 0...@words.length
-      place_word_in_puzzle(i)
+      set_word_data(i)
+      while !check_word_place(i)
+        set_word_data(i)
+      end
+      place_word(i)
     end
-    # adding random letters
-    # puzzle_board.each do |line|
-    #   line.each do |char|
-    #     if char == @@char_blank
-    #       char = rand()
-    #     end
-    #   end
-    # end
+    @key_puzzle_board = Marshal.load(Marshal.dump(@puzzle_board))
+    add_rand_chars
   end
 
   def restart
     @puzzle_board = Array.new(@size) {Array.new(@size, @@char_blank)}
     @words_data = Array.new(@words.length) {Array.new(3)}
+    for i in 0...@words.length
+      @words_data[i][3] = []
+    end
   end
 
   def puzzle_board_as_string
@@ -68,49 +81,29 @@ class Puzzle
       end
       return words
     end
+
     def set_word_data(word_index)
-      @words_data[word_index][2] = ["Horizontal", "Vertical", "Diagonal", "Diagonal-Left",
-                                    "Horizontal-Flip", "Vertical-Flip", "Diagonal-Flip", "Diagonal-Left-Flip"].sample
-      @words_data[word_index][0] = angle_out(@words[word_index], @words_data[word_index][2])
-      puts "#{@words[word_index]} rotation is #{@words_data[word_index][2]} | output:#{@words_data[word_index][0]}" if @debug
-      #word_placement = (@size/@words[word_index].length)
-      #puts "#{@words[word_index]} word_placement = #{word_placement}" if @debug
-      #@words_data[word_index][1] = [(rand(0...word_placement))*@words[word_index].length, (rand(0...word_placement))*@words[word_index].length]
-      @words_data[word_index][1] = [rand(0...@size-@words[word_index].length), rand(0...@size-@words[word_index].length)]
-      puts "#{@words[word_index]} at (#{@words_data[word_index][1][0]},#{@words_data[word_index][1][1]})" if @debug
-    end
-    def place_word_in_puzzle(word_index)
+      if @words_data[word_index][3].empty?
+        @words_data[word_index][2] = ["Horizontal", "Vertical", "Diagonal", "Diagonal-Left",
+                                      "Horizontal-Flip", "Vertical-Flip", "Diagonal-Flip", "Diagonal-Left-Flip"].sample
+        @words_data[word_index][0] = angle_out(@words[word_index], @words_data[word_index][2])
+        puts "#{@words[word_index]} rotation is #{@words_data[word_index][2]} | output:#{@words_data[word_index][0]}" if @debug
+      end
       works = false
       while !works
-        puzzle_board = Marshal.load(Marshal.dump(@puzzle_board))
-        set_word_data(word_index)
-        works = true
-        @words_data[word_index][0].each_with_index do |list, x|
-          if !works
-            break
-          end
-          list.each_with_index do |char, y|
-            print ("(#{(@words_data[word_index][1][0])+x},#{(@words_data[word_index][1][1])+y}) is #{char}") if @debug
-            if puzzle_board[(@words_data[word_index][1][0])+x][(@words_data[word_index][1][1])+y] == @@char_blank
-              puzzle_board[(@words_data[word_index][1][0])+x][(@words_data[word_index][1][1])+y] = char
-            elsif puzzle_board[(@words_data[word_index][1][0])+x][(@words_data[word_index][1][1])+y] == char
-
-            else
-              puts "" if @debug
-              puts "Fail (#{(@words_data[word_index][1][0])+x},#{(@words_data[word_index][1][1])+y}) want #{char} is #{puzzle_board[(@words_data[word_index][1][0])+x][(@words_data[word_index][1][1])+y]} retrying" if @debug
-              works = false
-              break
-            end
-          end
+        @words_data[word_index][1] = [rand(0...@size-@words[word_index].length), rand(0...@size-@words[word_index].length)]
+        puts "#{@words[word_index]} at (#{@words_data[word_index][1][0]},#{@words_data[word_index][1][1]})" if @debug
+        if !(@words_data[word_index][3].include?(@words_data[word_index][1]))
+          works = true
         end
-        puts "" if @debug
-        #sleep(1) if !works && @debug
       end
-      @puzzle_board = puzzle_board
+      if @words_data[word_index][3].length == 10
+        @words_data[word_index][3] = []
+      end
     end
+
     def angle_out(word, angle)
       word_chars = word.chars
-      #@letters.append(word_chars)
       size = word_chars.length
       output = Array.new(size) {Array.new(size, @@char_blank)}
       #puts output.inspect if @debug
@@ -141,5 +134,40 @@ class Puzzle
       end
       #puts output.inspect if @debug
       return output
+    end
+
+    def check_word_place(word_index)
+      @words_data[word_index][0].each_with_index do |line, x|
+        line.each_with_index do |char, y|
+          if puzzle_board[(@words_data[word_index][1][0])+x][(@words_data[word_index][1][1])+y] == @@char_blank
+          elsif puzzle_board[(@words_data[word_index][1][0])+x][(@words_data[word_index][1][1])+y] == char
+          else
+            puts "Fail (#{(@words_data[word_index][1][0])+x},#{(@words_data[word_index][1][1])+y}) want #{char} is #{puzzle_board[(@words_data[word_index][1][0])+x][(@words_data[word_index][1][1])+y]} retrying" if @debug
+            @words_data[word_index][3].push(@words_data[word_index][1])
+            return false
+          end
+        end
+      end
+      return true
+    end
+
+    def place_word(word_index)
+      @words_data[word_index][0].each_with_index do |line, x|
+        line.each_with_index do |char, y|
+          if puzzle_board[(@words_data[word_index][1][0])+x][(@words_data[word_index][1][1])+y] == @@char_blank
+            puzzle_board[(@words_data[word_index][1][0])+x][(@words_data[word_index][1][1])+y] = char
+          end
+        end
+      end
+    end
+
+    def add_rand_chars
+      for x in 0...@size
+        for y in 0...@size
+          if @puzzle_board[x][y] == @@char_blank
+            @puzzle_board[x][y] = @chars.sample
+          end
+        end
+      end
     end
 end

@@ -3,7 +3,7 @@ require './puzzle.rb'
 #require 'prawn'
 
 # Debugging flag
-$debug = false
+$debug = true
 
 # Var for making the puzzle
 size = 45
