@@ -24,7 +24,7 @@ info = {
     :Author   => "Timbre Freeman",
     :Subject  => "CIS 283 - Final Project - Output"
 }
-pdf_file = "Test.pdf"
+pdf_file = "puzzle.pdf"
 puz = Puzzle.new(size, file, $debug)
 Thread.abort_on_exception = true
 
